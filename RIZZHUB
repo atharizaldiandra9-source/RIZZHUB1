@@ -1,36 +1,46 @@
---// =======================================================
---// RIZZ HUB - TAB & UI STRUCTURE (CLEAN VERSION)
---// =======================================================
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
 
---[ TAB 1: GENERATOR ]--
-local GenTab = Window:MakeTab({ Name = "Generators", Icon = "rbxassetid://1123456789", PremiumOnly = false })
-GenTab:AddSection({ Name = "Generator Features" })
+--// VARIABLES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Flags = {SurvivorColor = Color3.fromRGB(0, 255, 0), KillerColor = Color3.fromRGB(255, 0, 0)}
 
---[ TAB 2: SURVIVOR ]--
-local SurvTab = Window:MakeTab({ Name = "Survivor", Icon = "rbxassetid://1123456789", PremiumOnly = false })
-SurvTab:AddSection({ Name = "Survivor Abilities" })
+--// UI SETUP
+local Window = OrionLib:MakeWindow({Name = "RizzHub", HidePremium = false, SaveConfig = true, IntroEnabled = true})
 
---[ TAB 3: KILLER ]--
-local KillTab = Window:MakeTab({ Name = "Killer", Icon = "rbxassetid://1123456789", PremiumOnly = false })
-KillTab:AddSection({ Name = "Killer Abilities" })
+--// TAB 1: GENERATORS
+local GenTab = Window:MakeTab({Name = "Generators", Icon = "rbxassetid://4483345998"})
+GenTab:AddSection({Name = "Generator Tools"})
 
---[ TAB 4: VISUAL (ESP AURA) ]--
-local VisualTab = Window:MakeTab({ Name = "Visual", Icon = "rbxassetid://1123456789", PremiumOnly = false })
-VisualTab:AddSection({ Name = "Aura Settings (ESP)" })
+--// TAB 2: SURVIVOR
+local SurvTab = Window:MakeTab({Name = "Survivor", Icon = "rbxassetid://4483345998"})
+SurvTab:AddSection({Name = "Survivor Abilities"})
 
---[ TAB 5: PLAYER ]--
-local PlayerTab = Window:MakeTab({ Name = "Player", Icon = "rbxassetid://1123456789", PremiumOnly = false })
-PlayerTab:AddSection({ Name = "Movement" })
+--// TAB 3: KILLER
+local KillTab = Window:MakeTab({Name = "Killer", Icon = "rbxassetid://4483345998"})
+KillTab:AddSection({Name = "Killer Abilities"})
 
---// CONTOH IMPLEMENTASI ESP AURA (TANPA TEKS)
+--// TAB 4: VISUAL
+local VisualTab = Window:MakeTab({Name = "Visual", Icon = "rbxassetid://4483345998"})
+VisualTab:AddSection({Name = "ESP Aura Settings"})
+
 VisualTab:AddColorpicker({
-	Name = "Survivor Aura Color",
+	Name = "Survivor Aura",
 	Default = Color3.fromRGB(0, 255, 0),
 	Callback = function(Value) Flags.SurvivorColor = Value end
 })
 
 VisualTab:AddColorpicker({
-	Name = "Killer Aura Color",
+	Name = "Killer Aura",
 	Default = Color3.fromRGB(255, 0, 0),
 	Callback = function(Value) Flags.KillerColor = Value end
 })
+
+--// TAB 5: PLAYER
+local PlayerTab = Window:MakeTab({Name = "Player", Icon = "rbxassetid://4483345998"})
+PlayerTab:AddSection({Name = "Movement"})
+
+--// CLEANUP: Pastikan tidak ada fungsi yang bentrok
+print("RizzHub Clean Version Re-Initialized")
