@@ -1,184 +1,36 @@
 --// =======================================================
---// RIZZ HUB - FINAL OPTIMIZED VERSION
+--// RIZZ HUB - TAB & UI STRUCTURE (CLEAN VERSION)
 --// =======================================================
 
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
+--[ TAB 1: GENERATOR ]--
+local GenTab = Window:MakeTab({ Name = "Generators", Icon = "rbxassetid://1123456789", PremiumOnly = false })
+GenTab:AddSection({ Name = "Generator Features" })
 
---// SERVICES
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local Lighting = game:GetService("Lighting")
-local CoreGui = game:GetService("CoreGui")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Terrain = workspace:FindFirstChildOfClass("Terrain")
+--[ TAB 2: SURVIVOR ]--
+local SurvTab = Window:MakeTab({ Name = "Survivor", Icon = "rbxassetid://1123456789", PremiumOnly = false })
+SurvTab:AddSection({ Name = "Survivor Abilities" })
 
-local LocalPlayer = Players.LocalPlayer
+--[ TAB 3: KILLER ]--
+local KillTab = Window:MakeTab({ Name = "Killer", Icon = "rbxassetid://1123456789", PremiumOnly = false })
+KillTab:AddSection({ Name = "Killer Abilities" })
 
---// WINDOW
-local Window = OrionLib:MakeWindow({
-	Name = "RizzHub",
-	HidePremium = false,
-	SaveConfig = true,
-	ConfigFolder = "RizzHub",
-	IntroEnabled = true,
-	IntroText = "WELCOME TO RIZZ HUB",
-	IntroIcon = "rbxassetid://6768917255",
-	Icon = "rbxassetid://122214542643927"
+--[ TAB 4: VISUAL (ESP AURA) ]--
+local VisualTab = Window:MakeTab({ Name = "Visual", Icon = "rbxassetid://1123456789", PremiumOnly = false })
+VisualTab:AddSection({ Name = "Aura Settings (ESP)" })
+
+--[ TAB 5: PLAYER ]--
+local PlayerTab = Window:MakeTab({ Name = "Player", Icon = "rbxassetid://1123456789", PremiumOnly = false })
+PlayerTab:AddSection({ Name = "Movement" })
+
+--// CONTOH IMPLEMENTASI ESP AURA (TANPA TEKS)
+VisualTab:AddColorpicker({
+	Name = "Survivor Aura Color",
+	Default = Color3.fromRGB(0, 255, 0),
+	Callback = function(Value) Flags.SurvivorColor = Value end
 })
 
-local Tab = Window:MakeTab({
-	Name = "VIOLENCE DISTRICT",
-	Icon = "rbxassetid://122214542643927",
-	PremiumOnly = false
+VisualTab:AddColorpicker({
+	Name = "Killer Aura Color",
+	Default = Color3.fromRGB(255, 0, 0),
+	Callback = function(Value) Flags.KillerColor = Value end
 })
-
---// VARIABLES
-local Connections = {}
-local Flags = {
-	AutoAttack = false,
-	AutoParry = false,
-	MasterESP = false,
-	Noclip = false,
-	Speed = 16
-}
-
-local function Disconnect(name)
-	if Connections[name] then
-		Connections[name]:Disconnect()
-		Connections[name] = nil
-	end
-end
-
---// UTILITY FUNCTIONS
-local function GetCharacter() return LocalPlayer.Character end
-
-local function CreateObjectESP(object, text, color)
-	if object:FindFirstChild("RizzObjESP") then 
-		object.RizzObjESP.TextLabel.Text = text
-		return 
-	end
-	local Billboard = Instance.new("BillboardGui", object)
-	Billboard.Name = "RizzObjESP"
-	Billboard.AlwaysOnTop = true
-	Billboard.Size = UDim2.new(0, 200, 0, 50)
-	Billboard.StudsOffset = Vector3.new(0, 2, 0)
-	local Label = Instance.new("TextLabel", Billboard)
-	Label.Size = UDim2.new(1, 0, 1, 0)
-	Label.BackgroundTransparency = 1
-	Label.Text = text
-	Label.TextColor3 = color
-	Label.TextStrokeTransparency = 0
-	Label.Font = Enum.Font.SourceSansBold
-end
-
-local function ClearAllESP()
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v.Name == "RizzESP" or v.Name == "RizzObjESP" then v:Destroy() end
-	end
-end
-
---// FEATURES
-Tab:AddToggle({
-	Name = "Auto Attack",
-	Callback = function(Value)
-		Flags.AutoAttack = Value
-		if Value then
-			Connections.AutoAttack = RunService.RenderStepped:Connect(function()
-				local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-				if tool and (string.find(tool.Name:lower(), "dagger") or string.find(tool.Name:lower(), "knife")) then
-					tool:Activate()
-				end
-			end)
-		else
-			Disconnect("AutoAttack")
-		end
-	end
-})
-
-Tab:AddToggle({
-	Name = "Auto Parry Dagger",
-	Callback = function(Value)
-		Flags.AutoParry = Value
-		if Value then
-			Connections.AutoParry = RunService.RenderStepped:Connect(function()
-				local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-				if not myRoot then return end
-				for _, otherPlayer in pairs(Players:GetPlayers()) do
-					if otherPlayer ~= LocalPlayer and otherPlayer.Character and otherPlayer.Character:FindFirstChild("IsAttacking") then
-						local killerRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-						if killerRoot and (killerRoot.Position - myRoot.Position).Magnitude < 7 then
-							pcall(function() ReplicatedStorage.Events.ParryEvent:FireServer() end)
-						end
-					end
-				end
-			end)
-		else
-			Disconnect("AutoParry")
-		end
-	end
-})
-
-Tab:AddToggle({
-	Name = "Advanced Visual ESP",
-	Callback = function(Value)
-		Flags.MasterESP = Value
-		if Value then
-			Connections.MasterESP = RunService.Heartbeat:Connect(function()
-				if not Flags.MasterESP then return end
-				for _, obj in pairs(workspace:GetDescendants()) do
-					if obj:IsA("BasePart") and (obj.Name:find("Generator") or obj.Name:find("Pallet") or obj.Name:find("Vault")) then
-						local dist = (LocalPlayer.Character.HumanoidRootPart.Position - obj.Position).Magnitude
-						if dist < 300 then
-							CreateObjectESP(obj, obj.Name, Color3.new(1, 1, 1))
-						end
-					end
-				end
-			end)
-		else
-			Disconnect("MasterESP")
-			ClearAllESP()
-		end
-	end
-})
-
-Tab:AddToggle({
-	Name = "Noclip (Optimized)",
-	Callback = function(Value)
-		Flags.Noclip = Value
-		if Value then
-			Connections.Noclip = RunService.Stepped:Connect(function()
-				local char = GetCharacter()
-				if char then
-					for _, p in pairs(char:GetDescendants()) do
-						if p:IsA("BasePart") then p.CanCollide = false end
-					end
-				end
-			end)
-		else
-			Disconnect("Noclip")
-		end
-	end
-})
-
-Tab:AddSlider({
-	Name = "Speed Hack",
-	Min = 16, Max = 100, Default = 16,
-	Callback = function(Value)
-		Flags.Speed = Value
-		local hum = GetCharacter() and GetCharacter():FindFirstChild("Humanoid")
-		if hum then hum.WalkSpeed = Value end
-	end
-})
-
-Tab:AddToggle({
-	Name = "FullBright",
-	Callback = function(Value)
-		Lighting.Ambient = Value and Color3.new(1,1,1) or Color3.new(0,0,0)
-		Lighting.Brightness = Value and 2 or 1
-	end
-})
-
---// FINAL
-print("RizzHub Final Version Loaded Successfully")
