@@ -1,5 +1,5 @@
 --// =======================================================
---// RIZZ HUB - CLEAN VERSION (UPDATED)
+--// RIZZ HUB - BRUTAL INSTINCT VERSION
 --// =======================================================
 
 --// LOAD UI
@@ -61,6 +61,7 @@ Flags.Noclip = false
 Flags.Speed = 16
 Flags.Radar = false
 Flags.ESP = false
+Flags.BrutalCounter = true -- Otomatis aktif demi keamanan bypass global
 
 --// =======================================================
 --// UTILITY
@@ -227,7 +228,6 @@ end
 local function CreateGeneratorESP(gen)
 	if gen:FindFirstChild("GenESP") then return end
 
-	-- Aura untuk Generator (Biru)
 	local Highlight = Instance.new("Highlight")
 	Highlight.Name = "GenESP"
 	Highlight.FillColor = Color3.fromRGB(0, 180, 255)
@@ -235,7 +235,6 @@ local function CreateGeneratorESP(gen)
 	Highlight.FillTransparency = 0.6
 	Highlight.Parent = gen
 
-	-- Text Persentase Realtime
 	local Billboard = Instance.new("BillboardGui")
 	Billboard.Name = "GenProgressUI"
 	Billboard.Size = UDim2.new(0, 100, 0, 40)
@@ -254,7 +253,6 @@ local function CreateGeneratorESP(gen)
 	TextLabel.Text = "Gen: 0%"
 	TextLabel.Parent = Billboard
 
-	-- Loop update progres realtime
 	task.spawn(function()
 		while Flags.ESP and gen:IsDescendantOf(workspace) do
 			local progressVal = gen:FindFirstChild("Progress") or gen:FindFirstChild("ProgressValue")
@@ -262,7 +260,6 @@ local function CreateGeneratorESP(gen)
 				local percentage = math.floor(progressVal.Value)
 				TextLabel.Text = "Gen: " .. tostring(percentage) .. "%"
 				
-				-- Ubah warna teks dinamis sesuai progres
 				if percentage >= 100 then
 					TextLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
 					TextLabel.Text = "COMPLETED"
@@ -296,7 +293,6 @@ Tab:AddToggle({
 			Connections.ESP_Loop = RunService.Heartbeat:Connect(function()
 				if not Flags.ESP then return end
 				
-				-- Player ESP Aura (No Text)
 				for _, player in pairs(Players:GetPlayers()) do
 					if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 						local char = player.Character
@@ -304,14 +300,13 @@ Tab:AddToggle({
 						local hasDagger = char:FindFirstChildOfClass("Tool") and (string.find(char:FindFirstChildOfClass("Tool").Name:lower(), "dagger") or string.find(char:FindFirstChildOfClass("Tool").Name:lower(), "knife"))
 
 						if isKiller or hasDagger then
-							CreatePlayerAura(char, Color3.fromRGB(255, 0, 0)) -- Merah jika berbahaya / bawa dagger
+							CreatePlayerAura(char, Color3.fromRGB(255, 0, 0))
 						else
-							CreatePlayerAura(char, Color3.fromRGB(0, 255, 0)) -- Hijau jika kawan/survivor
+							CreatePlayerAura(char, Color3.fromRGB(0, 255, 0))
 						end
 					end
 				end
 
-				-- Generator Tracking
 				for _, obj in pairs(workspace:GetDescendants()) do
 					if string.find(obj.Name:lower(), "generator") and obj:IsA("BasePart") then
 						CreateGeneratorESP(obj)
@@ -504,23 +499,45 @@ UserInputService.InputBegan:Connect(function(input, gp)
 end)
 
 --// =======================================================
---// AUTO PARRY MECHANIC
+--// AUTO PARRY GLOBAL (BRUTAL NO STUDS/DISTANCE LIMIT)
 --// =======================================================
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-local PARRY_RADIUS = 5 
+Tab:AddToggle({
+	Name = "Auto Dagger Brutal",
+	Default = true,
+	Callback = function(Value)
+		Flags.BrutalCounter = Value
+		if Value then
+			Notify("Brutal Counter", "Global Prediction Active")
+		end
+	end
+})
 
-RunService.RenderStepped:Connect(function()
-	for _, otherPlayer in pairs(Players:GetPlayers()) do
-		if otherPlayer ~= player and otherPlayer.Character then
-			local killerRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+RunService.Heartbeat:Connect(function()
+	if not Flags.BrutalCounter then return end
+
+	for _, enemy in pairs(Players:GetPlayers()) do
+		if enemy ~= LocalPlayer and enemy.Character then
+			local enemyChar = enemy.Character
 			
-			if killerRoot and (killerRoot.Position - humanoidRootPart.Position).Magnitude < PARRY_RADIUS then
-				if otherPlayer.Character:FindFirstChild("IsAttacking") then
+			-- Cek apakah player tersebut bertindak sebagai Killer atau membawa senjata tajam
+			local isKillerRole = enemy:GetAttribute("Role") == "Killer"
+			local hasWeapon = enemyChar:FindFirstChildOfClass("Tool") and (
+				string.find(enemyChar:FindFirstChildOfClass("Tool").Name:lower(), "dagger") or 
+				string.find(enemyChar:FindFirstChildOfClass("Tool").Name:lower(), "knife")
+			)
+
+			if isKillerRole or hasWeapon then
+				-- DETEKSI BRUTAL: Mengabaikan Magnitudo/Jarak (Tanpa Studs)
+				-- Langsung counter jika status IsAttacking aktif, atau mendeteksi ayunan tool (Activated)
+				local isSlashing = enemyChar:FindFirstChild("IsAttacking") and enemyChar.IsAttacking.Value == true
+				local toolState = enemyChar:FindFirstChildOfClass("Tool")
+				
+				-- Jika terindikasi animasi/state menyerang dari jarak manapun
+				if isSlashing or (toolState and toolState:FindFirstChild("RemoteClick")) then
 					task.spawn(function()
 						pcall(function()
+							-- Memaksa eksekusi event pertahanan langsung ke server game
 							game.ReplicatedStorage.Events.ParryEvent:FireServer()
 						end)
 					end)
@@ -534,4 +551,4 @@ end)
 --// FINAL
 --// =======================================================
 
-print("RizzHub Clean Version Loaded")
+print("RizzHub Brutal Version Loaded")
