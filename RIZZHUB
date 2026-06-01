@@ -1,5 +1,5 @@
 --// =======================================================
---// RIZZ HUB - ESP (TEAM COLOR) & AURA
+--// RIZZ HUB - FIXED ESP (DYNAMIC) & AURA
 --// =======================================================
 
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
@@ -7,50 +7,55 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
-local Window = OrionLib:MakeWindow({Name = "RizzHub | ESP & Aura", HidePremium = true, SaveConfig = true, ConfigFolder = "RizzHub"})
+local Window = OrionLib:MakeWindow({Name = "RizzHub | Fixed", HidePremium = true, SaveConfig = true, ConfigFolder = "RizzHub"})
 local Tab = Window:MakeTab({Name = "ESP & AURA", Icon = "rbxassetid://122214542643927"})
 
 local Flags = {ESP = false, Aura = false, AuraRange = 10}
 
---// FUNGSI ESP DENGAN TEAM COLOR
-local function UpdateESP()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local char = p.Character
-            
-            -- Cek apakah sudah ada Highlight
-            local h = char:FindFirstChild("RizzESP")
-            if not h then
-                h = Instance.new("Highlight")
-                h.Name = "RizzESP"
-                h.Parent = char
-            end
-            
-            -- Logika Warna: Biru jika Team sama, Merah jika musuh
-            if p.TeamColor == LocalPlayer.TeamColor then
-                h.FillColor = Color3.fromRGB(0, 0, 255) -- Biru untuk Teman
-            else
-                h.FillColor = Color3.fromRGB(255, 0, 0) -- Merah untuk Musuh
-            end
-            h.OutlineColor = Color3.fromRGB(255, 255, 255)
-        end
+--// FUNGSI UTAMA UNTUK MEMBERI ESP PADA KARAKTER
+local function AddHighlight(character)
+    if not character or character:FindFirstChild("RizzESP") then return end
+    
+    local player = Players:GetPlayerFromCharacter(character)
+    if not player or player == LocalPlayer then return end
+
+    local h = Instance.new("Highlight")
+    h.Name = "RizzESP"
+    h.Parent = character
+    h.OutlineColor = Color3.fromRGB(255, 255, 255)
+    
+    -- Update warna berdasarkan tim
+    if player.TeamColor == LocalPlayer.TeamColor then
+        h.FillColor = Color3.fromRGB(0, 0, 255) -- Biru untuk Teman
+    else
+        h.FillColor = Color3.fromRGB(255, 0, 0) -- Merah untuk Musuh
     end
+end
+
+--// LOGIKA ESP DINAMIS
+local function SetupESP()
+    -- Memberi ESP ke pemain yang sudah ada
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then AddHighlight(p.Character) end
+        p.CharacterAdded:Connect(AddHighlight) -- Deteksi kalau respawn
+    end
+
+    -- Deteksi kalau ada pemain baru masuk game
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(AddHighlight)
+    end)
 end
 
 --// ESP TOGGLE
 Tab:AddToggle({
-    Name = "Team ESP",
+    Name = "Smart Team ESP",
     Default = false,
     Callback = function(Value)
         Flags.ESP = Value
         if Value then
-            task.spawn(function()
-                while Flags.ESP do
-                    UpdateESP()
-                    task.wait(1)
-                end
-            end)
+            SetupESP()
         else
+            -- Hapus semua ESP
             for _, p in pairs(Players:GetPlayers()) do
                 if p.Character and p.Character:FindFirstChild("RizzESP") then
                     p.Character.RizzESP:Destroy()
@@ -60,13 +65,11 @@ Tab:AddToggle({
     end
 })
 
---// AURA TOGGLE (Hanya menyerang musuh)
+--// AURA TOGGLE (Tetap)
 Tab:AddToggle({
     Name = "Kill Aura (Enemy Only)",
     Default = false,
-    Callback = function(Value)
-        Flags.Aura = Value
-    end
+    Callback = function(Value) Flags.Aura = Value end
 })
 
 Tab:AddSlider({
@@ -82,14 +85,11 @@ RunService.RenderStepped:Connect(function()
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
 
     for _, p in pairs(Players:GetPlayers()) do
-        -- Hanya targetkan yang bukan tim sendiri
         if p ~= LocalPlayer and p.TeamColor ~= LocalPlayer.TeamColor and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local dist = (p.Character.HumanoidRootPart.Position - myChar.HumanoidRootPart.Position).Magnitude
             if dist <= Flags.AuraRange then
                 local tool = myChar:FindFirstChildOfClass("Tool")
-                if tool then
-                    tool:Activate()
-                end
+                if tool then tool:Activate() end
             end
         end
     end
