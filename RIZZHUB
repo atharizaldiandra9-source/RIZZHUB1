@@ -1,7 +1,4 @@
---// =======================================================
---// RIZZ HUB - FIXED ESP & HOLLOW FOV
---// =======================================================
-
+--// RIZZ HUB - PRO VERSION
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,51 +6,58 @@ local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-local Window = OrionLib:MakeWindow({Name = "RizzHub | Fixed", HidePremium = true, SaveConfig = true, ConfigFolder = "RizzHub"})
-local Tab = Window:MakeTab({Name = "Combat & Visual", Icon = "rbxassetid://122214542643927"})
+local Window = OrionLib:MakeWindow({Name = "RizzHub Pro", HidePremium = true, SaveConfig = false})
 
-local Flags = {ESP = false, Aimbot = false, FOV = false, FOVSize = 100}
+--// TAB UTAMA
+local CombatTab = Window:MakeTab({Name = "Aimbot Settings"})
+local VisualTab = Window:MakeTab({Name = "Visuals"})
 
---// FOV HOLLOW (BOLONG)
+local Settings = {
+    Aimbot = false,
+    Smooth = 10,
+    TeamCheck = true,
+    WallCheck = true,
+    FOV = false,
+    FOVSize = 100
+}
+
+--// FOV CIRCLE (HOLLOW)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false
-FOVCircle.Thickness = 1 -- Tipis
-FOVCircle.Filled = false -- Bikin bolong/transparan di tengah
+FOVCircle.Thickness = 1
+FOVCircle.Filled = false
 FOVCircle.Radius = 100
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
 
---// ESP FUNCTION (Gunakan Box + Highlight biar jelas kelihatan)
-local function CreateESP(char)
-    if char:FindFirstChild("RizzESP") then return end
-    local player = Players:GetPlayerFromCharacter(char)
-    if not player or player == LocalPlayer then return end
-    
-    local h = Instance.new("Highlight")
-    h.Name = "RizzESP"
-    h.Parent = char
-    h.Adornee = char
-    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Biar tembus pandang (wallhack)
-    h.FillTransparency = 0.5
-    h.OutlineTransparency = 0
-    h.FillColor = (player.TeamColor == LocalPlayer.TeamColor) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
-    h.OutlineColor = Color3.fromRGB(255, 255, 255)
-end
+--// FITUR AIMBOT
+CombatTab:AddToggle({Name = "Enable Aimbot", Default = false, Callback = function(v) Settings.Aimbot = v end})
+CombatTab:AddSlider({Name = "Smoothness (Lower = Faster)", Min = 1, Max = 20, Default = 10, Callback = function(v) Settings.Smooth = v end})
+CombatTab:AddToggle({Name = "Team Check", Default = true, Callback = function(v) Settings.TeamCheck = v end})
+CombatTab:AddToggle({Name = "Wall Check", Default = true, Callback = function(v) Settings.WallCheck = v end})
 
---// AIMBOT & WALL CHECK
-local function IsVisible(target)
-    local ray = Ray.new(Camera.CFrame.Position, target.Position - Camera.CFrame.Position)
-    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
-    return hit and hit:IsDescendantOf(target.Parent)
-end
+--// FITUR VISUAL
+VisualTab:AddToggle({Name = "Show FOV Circle", Default = false, Callback = function(v) Settings.FOV = v; FOVCircle.Visible = v end})
+VisualTab:AddSlider({Name = "FOV Size", Min = 50, Max = 500, Default = 100, Callback = function(v) Settings.FOVSize = v; FOVCircle.Radius = v end})
 
+--// LOGIKA AIMBOT DENGAN SMOOTHING
 local function GetClosest()
-    local closest, dist = nil, Flags.FOVSize
+    local closest, dist = nil, Settings.FOVSize
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.TeamColor ~= LocalPlayer.TeamColor and p.Character and p.Character:FindFirstChild("Head") then
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+            -- Team Check
+            if Settings.TeamCheck and p.TeamColor == LocalPlayer.TeamColor then continue end
+            
             local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
             local mouseDist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-            if onScreen and mouseDist < dist and IsVisible(p.Character.Head) then
+            
+            -- Wall Check
+            if Settings.WallCheck then
+                local ray = Ray.new(Camera.CFrame.Position, p.Character.Head.Position - Camera.CFrame.Position)
+                local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
+                if not hit or not hit:IsDescendantOf(p.Character) then continue end
+            end
+            
+            if onScreen and mouseDist < dist then
                 closest = p.Character.Head
                 dist = mouseDist
             end
@@ -62,31 +66,19 @@ local function GetClosest()
     return closest
 end
 
---// UI
-Tab:AddToggle({Name = "Enable ESP (Wallhack)", Default = false, Callback = function(v)
-    Flags.ESP = v
-    if v then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p.Character then CreateESP(p.Character) end
-            p.CharacterAdded:Connect(CreateESP)
-        end
-    else
-        for _, p in pairs(Players:GetPlayers()) do
-            if p.Character and p.Character:FindFirstChild("RizzESP") then p.Character.RizzESP:Destroy() end
-        end
-    end
-end})
-
-Tab:AddToggle({Name = "Aimbot", Default = false, Callback = function(v) Flags.Aimbot = v end})
-Tab:AddToggle({Name = "Show Hollow FOV", Default = false, Callback = function(v) Flags.FOV = v; FOVCircle.Visible = v end})
-Tab:AddSlider({Name = "FOV Size", Min = 50, Max = 500, Default = 100, Callback = function(v) Flags.FOVSize = v; FOVCircle.Radius = v end})
-
---// CORE
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    if Flags.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+    
+    if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local target = GetClosest()
-        if target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position) end
+        if target then
+            local targetPos = Camera:WorldToScreenPoint(target.Position)
+            local mousePos = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            
+            -- Smoothing Calculation
+            local move = (Vector2.new(targetPos.X, targetPos.Y) - mousePos) / Settings.Smooth
+            mousemoverel(move.X, move.Y)
+        end
     end
 end)
 
