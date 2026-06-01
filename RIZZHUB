@@ -1,554 +1,86 @@
 --// =======================================================
---// RIZZ HUB - BRUTAL INSTINCT VERSION
+--// RIZZ HUB - ESP & AURA VERSION
 --// =======================================================
 
---// LOAD UI
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
-
---// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local Lighting = game:GetService("Lighting")
-local CoreGui = game:GetService("CoreGui")
-local Terrain = workspace:FindFirstChildOfClass("Terrain")
-
---// PLAYER
 local LocalPlayer = Players.LocalPlayer
 
---// WINDOW
-local Window = OrionLib:MakeWindow({
-	Name = "RizzHub",
-	HidePremium = false,
-	SaveConfig = true,
-	ConfigFolder = "RizzHub",
-	IntroEnabled = true,
-	IntroText = "WELCOME",
-	IntroIcon = "rbxassetid://6768917255",
-	Icon = "rbxassetid://122214542643927"
-})
+local Window = OrionLib:MakeWindow({Name = "RizzHub | ESP & Aura", HidePremium = true, SaveConfig = true, ConfigFolder = "RizzHub"})
+local Tab = Window:MakeTab({Name = "ESP & AURA", Icon = "rbxassetid://122214542643927"})
 
---// TAB
-local Tab = Window:MakeTab({
-	Name = "VIOLENCE DISTRICT",
-	Icon = "rbxassetid://122214542643927",
-	PremiumOnly = false
-})
+local Flags = {ESP = false, Aura = false, AuraRange = 10}
 
-Tab:AddSection({
-	Name = "Main Features"
-})
-
---// NOTIFICATION
-OrionLib:MakeNotification({
-	Name = "Violence District Hub",
-	Content = "Script Loaded Successfully",
-	Image = "rbxassetid://4483345998",
-	Time = 5
-})
-
---// =======================================================
---// VARIABLES
---// =======================================================
-
-local Connections = {}
-local Flags = {}
-
-Flags.AutoAttack = false
-Flags.FullBright = false
-Flags.Noclip = false
-Flags.Speed = 16
-Flags.Radar = false
-Flags.ESP = false
-Flags.BrutalCounter = true -- Otomatis aktif demi keamanan bypass global
-
---// =======================================================
---// UTILITY
---// =======================================================
-
-local function GetCharacter()
-	return LocalPlayer.Character
+--// ESP FUNCTION
+local function CreateHighlight(target)
+    if target:FindFirstChild("RizzESP") then return end
+    local h = Instance.new("Highlight")
+    h.Name = "RizzESP"
+    h.FillColor = Color3.fromRGB(255, 0, 0)
+    h.OutlineColor = Color3.fromRGB(255, 255, 255)
+    h.Parent = target
 end
 
-local function GetHumanoid()
-	local char = GetCharacter()
-	return char and char:FindFirstChildOfClass("Humanoid")
-end
-
-local function Notify(title, text, duration)
-	pcall(function()
-		game:GetService("StarterGui"):SetCore("SendNotification", {
-			Title = title,
-			Text = text,
-			Duration = duration or 3
-		})
-	end)
-end
-
-local function Disconnect(name)
-	if Connections[name] then
-		Connections[name]:Disconnect()
-		Connections[name] = nil
-	end
-end
-
---// =======================================================
---// AUTO ATTACK
---// =======================================================
-
+--// ESP TOGGLE
 Tab:AddToggle({
-	Name = "Auto Attack",
-	Default = false,
-	Callback = function(Value)
-		Flags.AutoAttack = Value
-
-		if Value then
-			Disconnect("AutoAttack")
-			Connections.AutoAttack = RunService.RenderStepped:Connect(function()
-				local char = GetCharacter()
-				if not char then return end
-
-				local tool = char:FindFirstChildOfClass("Tool")
-				if tool and (
-					string.find(tool.Name:lower(), "dagger")
-					or string.find(tool.Name:lower(), "knife")
-				) then
-					tool:Activate()
-				end
-			end)
-			Notify("Auto Attack", "Enabled")
-		else
-			Disconnect("AutoAttack")
-			Notify("Auto Attack", "Disabled")
-		end
-	end
+    Name = "Player ESP",
+    Default = false,
+    Callback = function(Value)
+        Flags.ESP = Value
+        if Value then
+            task.spawn(function()
+                while Flags.ESP do
+                    for _, p in pairs(Players:GetPlayers()) do
+                        if p ~= LocalPlayer and p.Character then
+                            CreateHighlight(p.Character)
+                        end
+                    end
+                    task.wait(1)
+                end
+            end)
+        else
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("RizzESP") then
+                    p.Character.RizzESP:Destroy()
+                end
+            end
+        end
+    end
 })
 
---// =======================================================
---// SPEED HACK
---// =======================================================
+--// AURA TOGGLE
+Tab:AddToggle({
+    Name = "Kill Aura",
+    Default = false,
+    Callback = function(Value)
+        Flags.Aura = Value
+    end
+})
 
 Tab:AddSlider({
-	Name = "Speed Hack",
-	Min = 16,
-	Max = 100,
-	Default = 16,
-	Increment = 1,
-	ValueName = "Speed",
-	Callback = function(Value)
-		Flags.Speed = Value
-		Disconnect("SpeedLoop")
-
-		Connections.SpeedLoop = RunService.Heartbeat:Connect(function()
-			local humanoid = GetHumanoid()
-			if humanoid then
-				humanoid.WalkSpeed = Flags.Speed
-			end
-		end)
-	end
+    Name = "Aura Range",
+    Min = 5, Max = 20, Default = 10,
+    Callback = function(Value) Flags.AuraRange = Value end
 })
 
---// =======================================================
---// FULLBRIGHT
---// =======================================================
+--// AURA LOOP
+RunService.RenderStepped:Connect(function()
+    if not Flags.Aura then return end
+    local myChar = LocalPlayer.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
 
-local OriginalLighting = {
-	Ambient = Lighting.Ambient,
-	OutdoorAmbient = Lighting.OutdoorAmbient,
-	Brightness = Lighting.Brightness
-}
-
-Tab:AddToggle({
-	Name = "FullBright",
-	Default = false,
-	Callback = function(Value)
-		Flags.FullBright = Value
-
-		if Value then
-			Lighting.Ambient = Color3.new(1,1,1)
-			Lighting.OutdoorAmbient = Color3.new(1,1,1)
-			Lighting.Brightness = 2
-		else
-			Lighting.Ambient = OriginalLighting.Ambient
-			Lighting.OutdoorAmbient = OriginalLighting.OutdoorAmbient
-			Lighting.Brightness = OriginalLighting.Brightness
-		end
-	end
-})
-
---// =======================================================
---// NOCLIP
---// =======================================================
-
-Tab:AddToggle({
-	Name = "Noclip",
-	Default = false,
-	Callback = function(Value)
-		Flags.Noclip = Value
-
-		if Value then
-			Disconnect("Noclip")
-			Connections.Noclip = RunService.Stepped:Connect(function()
-				local char = GetCharacter()
-				if not char then return end
-
-				for _, part in pairs(char:GetDescendants()) do
-					if part:IsA("BasePart") then
-						part.CanCollide = false
-					end
-				end
-			end)
-		else
-			Disconnect("Noclip")
-		end
-	end
-})
-
---// =======================================================
---// AURA ESP & REALTIME GENERATOR TRACKER
---// =======================================================
-
-local function CreatePlayerAura(target, color)
-	if target:FindFirstChild("RizzESP") then 
-		target.RizzESP.FillColor = color
-		target.RizzESP.OutlineColor = color
-		return 
-	end
-
-	local Highlight = Instance.new("Highlight")
-	Highlight.Name = "RizzESP"
-	Highlight.FillColor = color
-	Highlight.OutlineColor = color
-	Highlight.FillTransparency = 0.4
-	Highlight.OutlineTransparency = 0.1
-	Highlight.Parent = target
-end
-
-local function CreateGeneratorESP(gen)
-	if gen:FindFirstChild("GenESP") then return end
-
-	local Highlight = Instance.new("Highlight")
-	Highlight.Name = "GenESP"
-	Highlight.FillColor = Color3.fromRGB(0, 180, 255)
-	Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-	Highlight.FillTransparency = 0.6
-	Highlight.Parent = gen
-
-	local Billboard = Instance.new("BillboardGui")
-	Billboard.Name = "GenProgressUI"
-	Billboard.Size = UDim2.new(0, 100, 0, 40)
-	Billboard.AlwaysOnTop = true
-	Billboard.StudsOffset = Vector3.new(0, 4, 0)
-	Billboard.Parent = gen
-
-	local TextLabel = Instance.new("TextLabel")
-	TextLabel.Size = UDim2.new(1, 0, 1, 0)
-	TextLabel.BackgroundTransparency = 1
-	TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	TextLabel.TextStrokeTransparency = 0
-	TextLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-	TextLabel.Font = Enum.Font.SourceSansBold
-	TextLabel.TextSize = 16
-	TextLabel.Text = "Gen: 0%"
-	TextLabel.Parent = Billboard
-
-	task.spawn(function()
-		while Flags.ESP and gen:IsDescendantOf(workspace) do
-			local progressVal = gen:FindFirstChild("Progress") or gen:FindFirstChild("ProgressValue")
-			if progressVal then
-				local percentage = math.floor(progressVal.Value)
-				TextLabel.Text = "Gen: " .. tostring(percentage) .. "%"
-				
-				if percentage >= 100 then
-					TextLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-					TextLabel.Text = "COMPLETED"
-				elseif percentage > 50 then
-					TextLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-				else
-					TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-				end
-			end
-			task.wait(0.2)
-		end
-	end)
-end
-
-local function ClearAllESP()
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v.Name == "RizzESP" or v.Name == "GenESP" or v.Name == "GenProgressUI" then
-			v:Destroy()
-		end
-	end
-end
-
-Tab:AddToggle({
-	Name = "Visual ESP (Aura & Gen %)",
-	Default = false,
-	Callback = function(Value)
-		Flags.ESP = Value
-
-		if Value then
-			Disconnect("ESP_Loop")
-			Connections.ESP_Loop = RunService.Heartbeat:Connect(function()
-				if not Flags.ESP then return end
-				
-				for _, player in pairs(Players:GetPlayers()) do
-					if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-						local char = player.Character
-						local isKiller = player:GetAttribute("Role") == "Killer" or char:FindFirstChild("IsAttacking")
-						local hasDagger = char:FindFirstChildOfClass("Tool") and (string.find(char:FindFirstChildOfClass("Tool").Name:lower(), "dagger") or string.find(char:FindFirstChildOfClass("Tool").Name:lower(), "knife"))
-
-						if isKiller or hasDagger then
-							CreatePlayerAura(char, Color3.fromRGB(255, 0, 0))
-						else
-							CreatePlayerAura(char, Color3.fromRGB(0, 255, 0))
-						end
-					end
-				end
-
-				for _, obj in pairs(workspace:GetDescendants()) do
-					if string.find(obj.Name:lower(), "generator") and obj:IsA("BasePart") then
-						CreateGeneratorESP(obj)
-					end
-				end
-			end)
-		else
-			ClearAllESP()
-			Disconnect("ESP_Loop")
-		end
-	end
-})
-
---// =======================================================
---// AUTO SKILL CHECK
---// =======================================================
-
-Tab:AddToggle({
-	Name = "Auto Skill Check",
-	Default = false,
-	Callback = function(Value)
-		Flags.SkillCheck = Value
-
-		if Value then
-			task.spawn(function()
-				while Flags.SkillCheck do
-					task.wait()
-					local gui = LocalPlayer:FindFirstChild("PlayerGui")
-
-					if gui and gui:FindFirstChild("SkillCheckUI") then
-						VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-						task.wait(0.05)
-						VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-						task.wait(0.3)
-					end
-				end
-			end)
-		end
-	end
-})
-
---// =======================================================
---// AUTO WIGGLE
---// =======================================================
-
-Tab:AddToggle({
-	Name = "Auto Wiggle",
-	Default = false,
-	Callback = function(Value)
-		Flags.Wiggle = Value
-
-		if Value then
-			task.spawn(function()
-				while Flags.Wiggle do
-					task.wait()
-					local humanoid = GetHumanoid()
-
-					if humanoid and humanoid.PlatformStand then
-						VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.A, false, game)
-						task.wait(0.05)
-						VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.A, false, game)
-
-						VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.D, false, game)
-						task.wait(0.05)
-						VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.D, false, game)
-					end
-				end
-			end)
-		end
-	end
-})
-
---// =======================================================
---// FPS UNLOCK
---// =======================================================
-
-Tab:AddToggle({
-	Name = "Unlock 120 FPS",
-	Default = false,
-	Callback = function(Value)
-		if setfpscap then
-			if Value then
-				setfpscap(120)
-			else
-				setfpscap(60)
-			end
-		end
-	end
-})
-
---// =======================================================
---// POTATO GRAPHICS
---// =======================================================
-
-Tab:AddToggle({
-	Name = "Super Smooth Graphics",
-	Default = false,
-	Callback = function(Value)
-		if Value then
-			for _, obj in pairs(workspace:GetDescendants()) do
-				if obj:IsA("BasePart") then
-					obj.Material = Enum.Material.SmoothPlastic
-					obj.Reflectance = 0
-				end
-				if obj:IsA("Texture") or obj:IsA("Decal") then
-					obj.Transparency = 1
-				end
-			end
-
-			if Terrain then
-				pcall(function()
-					sethiddenproperty(Terrain, "Decoration", false)
-				end)
-			end
-		end
-	end
-})
-
---// =======================================================
---// MINI RADAR
---// =======================================================
-
-Tab:AddToggle({
-	Name = "Mini Radar",
-	Default = false,
-	Callback = function(Value)
-		Flags.Radar = Value
-
-		if Value then
-			local Radar = Instance.new("ScreenGui")
-			Radar.Name = "RizzRadar"
-			Radar.Parent = CoreGui
-
-			local Frame = Instance.new("Frame")
-			Frame.Size = UDim2.new(0,150,0,150)
-			Frame.Position = UDim2.new(0,20,0,20)
-			Frame.BackgroundTransparency = 0.3
-			Frame.Parent = Radar
-
-			Connections.Radar = RunService.Heartbeat:Connect(function()
-				for _, child in pairs(Frame:GetChildren()) do
-					if child.Name == "Dot" then
-						child:Destroy()
-					end
-				end
-
-				local myChar = GetCharacter()
-				if not myChar then return end
-
-				local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-				if not myRoot then return end
-
-				for _, player in pairs(Players:GetPlayers()) do
-					if player ~= LocalPlayer and player.Character then
-						local root = player.Character:FindFirstChild("HumanoidRootPart")
-						if root then
-							local dist = root.Position - myRoot.Position
-							local Dot = Instance.new("Frame")
-							Dot.Name = "Dot"
-							Dot.Size = UDim2.new(0,5,0,5)
-							Dot.Position = UDim2.new(0.5, dist.X * 0.4, 0.5, dist.Z * 0.4)
-							Dot.BackgroundColor3 = Color3.fromRGB(255,0,0)
-							Dot.Parent = Frame
-						end
-					end
-				end
-			end)
-		else
-			Disconnect("Radar")
-			local Radar = CoreGui:FindFirstChild("RizzRadar")
-			if Radar then
-				Radar:Destroy()
-			end
-		end
-	end
-})
-
---// =======================================================
---// KEYBIND TOGGLE
---// =======================================================
-
-local ToggleKey = Enum.KeyCode.P
-
-UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
-	if input.KeyCode == ToggleKey then
-		Flags.AutoAttack = not Flags.AutoAttack
-		Notify("Auto Attack", Flags.AutoAttack and "Enabled" or "Disabled")
-	end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (p.Character.HumanoidRootPart.Position - myChar.HumanoidRootPart.Position).Magnitude
+            if dist <= Flags.AuraRange then
+                local tool = myChar:FindFirstChildOfClass("Tool")
+                if tool then
+                    tool:Activate()
+                end
+            end
+        end
+    end
 end)
 
---// =======================================================
---// AUTO PARRY GLOBAL (BRUTAL NO STUDS/DISTANCE LIMIT)
---// =======================================================
-
-Tab:AddToggle({
-	Name = "Auto Dagger Brutal",
-	Default = true,
-	Callback = function(Value)
-		Flags.BrutalCounter = Value
-		if Value then
-			Notify("Brutal Counter", "Global Prediction Active")
-		end
-	end
-})
-
-RunService.Heartbeat:Connect(function()
-	if not Flags.BrutalCounter then return end
-
-	for _, enemy in pairs(Players:GetPlayers()) do
-		if enemy ~= LocalPlayer and enemy.Character then
-			local enemyChar = enemy.Character
-			
-			-- Cek apakah player tersebut bertindak sebagai Killer atau membawa senjata tajam
-			local isKillerRole = enemy:GetAttribute("Role") == "Killer"
-			local hasWeapon = enemyChar:FindFirstChildOfClass("Tool") and (
-				string.find(enemyChar:FindFirstChildOfClass("Tool").Name:lower(), "dagger") or 
-				string.find(enemyChar:FindFirstChildOfClass("Tool").Name:lower(), "knife")
-			)
-
-			if isKillerRole or hasWeapon then
-				-- DETEKSI BRUTAL: Mengabaikan Magnitudo/Jarak (Tanpa Studs)
-				-- Langsung counter jika status IsAttacking aktif, atau mendeteksi ayunan tool (Activated)
-				local isSlashing = enemyChar:FindFirstChild("IsAttacking") and enemyChar.IsAttacking.Value == true
-				local toolState = enemyChar:FindFirstChildOfClass("Tool")
-				
-				-- Jika terindikasi animasi/state menyerang dari jarak manapun
-				if isSlashing or (toolState and toolState:FindFirstChild("RemoteClick")) then
-					task.spawn(function()
-						pcall(function()
-							-- Memaksa eksekusi event pertahanan langsung ke server game
-							game.ReplicatedStorage.Events.ParryEvent:FireServer()
-						end)
-					end)
-				end
-			end
-		end
-	end
-end)
-
---// =======================================================
---// FINAL
---// =======================================================
-
-print("RizzHub Brutal Version Loaded")
+OrionLib:Init()
