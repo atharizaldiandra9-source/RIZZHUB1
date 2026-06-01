@@ -1,5 +1,5 @@
 --// =======================================================
---// RIZZ HUB - ESP, AURA, AIMBOT & FOV
+--// RIZZ HUB - ALL IN ONE (ESP, AIMBOT, FOV)
 --// =======================================================
 
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
@@ -9,12 +9,12 @@ local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-local Window = OrionLib:MakeWindow({Name = "RizzHub | Pro", HidePremium = true, SaveConfig = true, ConfigFolder = "RizzHub"})
-local Tab = Window:MakeTab({Name = "Combat & Visual", Icon = "rbxassetid://122214542643927"})
+local Window = OrionLib:MakeWindow({Name = "RizzHub | Ultimate", HidePremium = true, SaveConfig = true, ConfigFolder = "RizzHub"})
+local Tab = Window:MakeTab({Name = "Combat & ESP", Icon = "rbxassetid://122214542643927"})
 
-local Flags = {ESP = false, Aimbot = false, FOV = false, Aura = false, Range = 10, FOVSize = 100}
+local Flags = {ESP = false, Aimbot = false, FOV = false, FOVSize = 100}
 
---// FOV CIRCLE
+--// FOV CIRCLE SETUP
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false
 FOVCircle.Thickness = 1
@@ -22,49 +22,67 @@ FOVCircle.Radius = 100
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
 
---// WALL CHECK & TEAM CHECK
+--// ESP FUNCTION (TEAM COLOR)
+local function CreateHighlight(char)
+    if char:FindFirstChild("RizzESP") then return end
+    local player = Players:GetPlayerFromCharacter(char)
+    if not player or player == LocalPlayer then return end
+    
+    local h = Instance.new("Highlight")
+    h.Name = "RizzESP"
+    h.Parent = char
+    h.OutlineColor = Color3.fromRGB(255, 255, 255)
+    h.FillColor = (player.TeamColor == LocalPlayer.TeamColor) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
+end
+
+--// WALL CHECK
 local function IsVisible(target)
-    local origin = Camera.CFrame.Position
-    local targetPos = target:FindFirstChild("Head") and target.Head.Position or target:FindFirstChild("HumanoidRootPart").Position
-    local ray = Ray.new(origin, targetPos - origin)
+    local ray = Ray.new(Camera.CFrame.Position, target.Position - Camera.CFrame.Position)
     local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
-    return hit and hit:IsDescendantOf(target)
+    return hit and hit:IsDescendantOf(target.Parent)
 end
 
 --// AIMBOT LOGIC
-local function GetClosestPlayer()
-    local closestPlayer = nil
-    local shortestDistance = Flags.FOVSize
-
+local function GetClosest()
+    local closest, dist = nil, Flags.FOVSize
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.TeamColor ~= LocalPlayer.TeamColor and p.Character and p.Character:FindFirstChild("Head") then
             local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
-            if onScreen then
-                local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if dist < shortestDistance and IsVisible(p.Character) then
-                    closestPlayer = p.Character.Head
-                    shortestDistance = dist
-                end
+            local mouseDist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+            if onScreen and mouseDist < dist and IsVisible(p.Character.Head) then
+                closest = p.Character.Head
+                dist = mouseDist
             end
         end
     end
-    return closestPlayer
+    return closest
 end
 
---// UI ELEMENTS
+--// UI TOGGLES
+Tab:AddToggle({Name = "Enable Team ESP", Default = false, Callback = function(v)
+    Flags.ESP = v
+    if v then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character then CreateHighlight(p.Character) end
+            p.CharacterAdded:Connect(CreateHighlight)
+        end
+    else
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("RizzESP") then p.Character.RizzESP:Destroy() end
+        end
+    end
+end})
+
 Tab:AddToggle({Name = "Aimbot (Team/Wall Check)", Default = false, Callback = function(v) Flags.Aimbot = v end})
-Tab:AddToggle({Name = "Show FOV Circle", Default = false, Callback = function(v) Flags.FOV = v; FOVCircle.Visible = v end})
+Tab:AddToggle({Name = "Show FOV", Default = false, Callback = function(v) Flags.FOV = v; FOVCircle.Visible = v end})
 Tab:AddSlider({Name = "FOV Size", Min = 50, Max = 500, Default = 100, Callback = function(v) Flags.FOVSize = v; FOVCircle.Radius = v end})
 
---// UPDATE LOOP
+--// CORE LOOP
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    
     if Flags.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = GetClosestPlayer()
-        if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-        end
+        local target = GetClosest()
+        if target then Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position) end
     end
 end)
 
