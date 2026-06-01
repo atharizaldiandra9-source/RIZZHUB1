@@ -1,5 +1,5 @@
 --// =======================================================
---// RIZZ HUB - ALL IN ONE (ESP, AIMBOT, FOV)
+--// RIZZ HUB - FIXED ESP & HOLLOW FOV
 --// =======================================================
 
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
@@ -9,21 +9,22 @@ local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-local Window = OrionLib:MakeWindow({Name = "RizzHub | Ultimate", HidePremium = true, SaveConfig = true, ConfigFolder = "RizzHub"})
-local Tab = Window:MakeTab({Name = "Combat & ESP", Icon = "rbxassetid://122214542643927"})
+local Window = OrionLib:MakeWindow({Name = "RizzHub | Fixed", HidePremium = true, SaveConfig = true, ConfigFolder = "RizzHub"})
+local Tab = Window:MakeTab({Name = "Combat & Visual", Icon = "rbxassetid://122214542643927"})
 
 local Flags = {ESP = false, Aimbot = false, FOV = false, FOVSize = 100}
 
---// FOV CIRCLE SETUP
+--// FOV HOLLOW (BOLONG)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false
-FOVCircle.Thickness = 1
+FOVCircle.Thickness = 1 -- Tipis
+FOVCircle.Filled = false -- Bikin bolong/transparan di tengah
 FOVCircle.Radius = 100
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
 
---// ESP FUNCTION (TEAM COLOR)
-local function CreateHighlight(char)
+--// ESP FUNCTION (Gunakan Box + Highlight biar jelas kelihatan)
+local function CreateESP(char)
     if char:FindFirstChild("RizzESP") then return end
     local player = Players:GetPlayerFromCharacter(char)
     if not player or player == LocalPlayer then return end
@@ -31,18 +32,21 @@ local function CreateHighlight(char)
     local h = Instance.new("Highlight")
     h.Name = "RizzESP"
     h.Parent = char
-    h.OutlineColor = Color3.fromRGB(255, 255, 255)
+    h.Adornee = char
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Biar tembus pandang (wallhack)
+    h.FillTransparency = 0.5
+    h.OutlineTransparency = 0
     h.FillColor = (player.TeamColor == LocalPlayer.TeamColor) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
+    h.OutlineColor = Color3.fromRGB(255, 255, 255)
 end
 
---// WALL CHECK
+--// AIMBOT & WALL CHECK
 local function IsVisible(target)
     local ray = Ray.new(Camera.CFrame.Position, target.Position - Camera.CFrame.Position)
     local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
     return hit and hit:IsDescendantOf(target.Parent)
 end
 
---// AIMBOT LOGIC
 local function GetClosest()
     local closest, dist = nil, Flags.FOVSize
     for _, p in pairs(Players:GetPlayers()) do
@@ -58,13 +62,13 @@ local function GetClosest()
     return closest
 end
 
---// UI TOGGLES
-Tab:AddToggle({Name = "Enable Team ESP", Default = false, Callback = function(v)
+--// UI
+Tab:AddToggle({Name = "Enable ESP (Wallhack)", Default = false, Callback = function(v)
     Flags.ESP = v
     if v then
         for _, p in pairs(Players:GetPlayers()) do
-            if p.Character then CreateHighlight(p.Character) end
-            p.CharacterAdded:Connect(CreateHighlight)
+            if p.Character then CreateESP(p.Character) end
+            p.CharacterAdded:Connect(CreateESP)
         end
     else
         for _, p in pairs(Players:GetPlayers()) do
@@ -73,11 +77,11 @@ Tab:AddToggle({Name = "Enable Team ESP", Default = false, Callback = function(v)
     end
 end})
 
-Tab:AddToggle({Name = "Aimbot (Team/Wall Check)", Default = false, Callback = function(v) Flags.Aimbot = v end})
-Tab:AddToggle({Name = "Show FOV", Default = false, Callback = function(v) Flags.FOV = v; FOVCircle.Visible = v end})
+Tab:AddToggle({Name = "Aimbot", Default = false, Callback = function(v) Flags.Aimbot = v end})
+Tab:AddToggle({Name = "Show Hollow FOV", Default = false, Callback = function(v) Flags.FOV = v; FOVCircle.Visible = v end})
 Tab:AddSlider({Name = "FOV Size", Min = 50, Max = 500, Default = 100, Callback = function(v) Flags.FOVSize = v; FOVCircle.Radius = v end})
 
---// CORE LOOP
+--// CORE
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
     if Flags.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
