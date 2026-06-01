@@ -1,4 +1,4 @@
---// RIZZ HUB - PRO VERSION
+--// RIZZ HUB PRO - STABLE FULL VERSION
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -6,20 +6,52 @@ local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-local Window = OrionLib:MakeWindow({Name = "RizzHub Pro", HidePremium = true, SaveConfig = false})
+--// Logo R
+local R_Logo_Asset = "rbxassetid://13589886470"
 
---// TAB UTAMA
-local CombatTab = Window:MakeTab({Name = "Aimbot Settings"})
-local VisualTab = Window:MakeTab({Name = "Visuals"})
+local Window = OrionLib:MakeWindow({
+    Name = "RizzHub Pro",
+    HidePremium = true,
+    SaveConfig = false,
+    IntroEnabled = true,
+    IntroText = "RIZZ HUB",
+    IntroIcon = R_Logo_Asset,
+    Icon = R_Logo_Asset
+})
 
+--// Tabel Pengaturan
 local Settings = {
-    Aimbot = false,
-    Smooth = 10,
-    TeamCheck = true,
-    WallCheck = true,
-    FOV = false,
-    FOVSize = 100
+    Aimbot = false, Smooth = 10, TeamCheck = true, WallCheck = true,
+    ESP = false, FOV = false, FOVSize = 100
 }
+
+--// ESP BOX SYSTEM
+local ESP_Objects = {}
+local function UpdateESP()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            if not ESP_Objects[p] then 
+                local box = Drawing.new("Square")
+                box.Thickness = 1
+                box.Filled = false
+                ESP_Objects[p] = box 
+            end
+            local box = ESP_Objects[p]
+            local pos, onScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+            if onScreen and Settings.ESP then
+                box.Visible = true
+                box.Color = (Settings.TeamCheck and p.TeamColor == LocalPlayer.TeamColor) and Color3.fromRGB(0, 0, 255) or Color3.fromRGB(255, 0, 0)
+                box.Position = Vector2.new(pos.X - 25, pos.Y - 25)
+                box.Size = Vector2.new(50, 50)
+            else
+                box.Visible = false
+            end
+        elseif ESP_Objects[p] then
+            ESP_Objects[p]:Remove()
+            ESP_Objects[p] = nil
+        end
+    end
+end
 
 --// FOV CIRCLE (HOLLOW)
 local FOVCircle = Drawing.new("Circle")
@@ -29,53 +61,48 @@ FOVCircle.Filled = false
 FOVCircle.Radius = 100
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 
---// FITUR AIMBOT
-CombatTab:AddToggle({Name = "Enable Aimbot", Default = false, Callback = function(v) Settings.Aimbot = v end})
-CombatTab:AddSlider({Name = "Smoothness (Lower = Faster)", Min = 1, Max = 20, Default = 10, Callback = function(v) Settings.Smooth = v end})
+--// UI TABS
+local CombatTab = Window:MakeTab({Name = "Combat", Icon = R_Logo_Asset})
+local VisualTab = Window:MakeTab({Name = "Visuals", Icon = R_Logo_Asset})
+
+--// FITUR COMBAT
+CombatTab:AddToggle({Name = "Aimbot", Default = false, Callback = function(v) Settings.Aimbot = v end})
+CombatTab:AddSlider({Name = "Smoothness", Min = 1, Max = 20, Default = 10, Callback = function(v) Settings.Smooth = v end})
 CombatTab:AddToggle({Name = "Team Check", Default = true, Callback = function(v) Settings.TeamCheck = v end})
 CombatTab:AddToggle({Name = "Wall Check", Default = true, Callback = function(v) Settings.WallCheck = v end})
 
 --// FITUR VISUAL
+VisualTab:AddToggle({Name = "Enable ESP Box", Default = false, Callback = function(v) Settings.ESP = v end})
 VisualTab:AddToggle({Name = "Show FOV Circle", Default = false, Callback = function(v) Settings.FOV = v; FOVCircle.Visible = v end})
 VisualTab:AddSlider({Name = "FOV Size", Min = 50, Max = 500, Default = 100, Callback = function(v) Settings.FOVSize = v; FOVCircle.Radius = v end})
 
---// LOGIKA AIMBOT DENGAN SMOOTHING
-local function GetClosest()
-    local closest, dist = nil, Settings.FOVSize
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
-            -- Team Check
-            if Settings.TeamCheck and p.TeamColor == LocalPlayer.TeamColor then continue end
-            
-            local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
-            local mouseDist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-            
-            -- Wall Check
-            if Settings.WallCheck then
-                local ray = Ray.new(Camera.CFrame.Position, p.Character.Head.Position - Camera.CFrame.Position)
-                local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
-                if not hit or not hit:IsDescendantOf(p.Character) then continue end
-            end
-            
-            if onScreen and mouseDist < dist then
-                closest = p.Character.Head
-                dist = mouseDist
-            end
-        end
-    end
-    return closest
-end
-
+--// MAIN LOOP
 RunService.RenderStepped:Connect(function()
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    UpdateESP()
     
     if Settings.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = GetClosest()
+        local target = nil
+        local dist = Settings.FOVSize
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                if Settings.TeamCheck and p.TeamColor == LocalPlayer.TeamColor then continue end
+                if Settings.WallCheck then
+                    local ray = Ray.new(Camera.CFrame.Position, p.Character.Head.Position - Camera.CFrame.Position)
+                    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
+                    if not hit or not hit:IsDescendantOf(p.Character) then continue end
+                end
+                local pos, onScreen = Camera:WorldToViewportPoint(p.Character.Head.Position)
+                local mouseDist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                if onScreen and mouseDist < dist then
+                    target = p.Character.Head
+                    dist = mouseDist
+                end
+            end
+        end
         if target then
             local targetPos = Camera:WorldToScreenPoint(target.Position)
             local mousePos = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-            
-            -- Smoothing Calculation
             local move = (Vector2.new(targetPos.X, targetPos.Y) - mousePos) / Settings.Smooth
             mousemoverel(move.X, move.Y)
         end
